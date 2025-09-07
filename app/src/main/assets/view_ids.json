@@ -1,0 +1,22 @@
+{
+  "youtube": [
+    "shorts_player_page",
+    "reel_player_page", 
+    "shorts_container",
+    "shorts_video_container",
+    "shorts_player_fragment_container",
+    "shorts_pivot_item_container",
+    "shorts_shelf_header",
+    "reel_item_node"
+  ],
+  "instagram": [
+    "clips_viewer_view_pager",
+    "reel_viewer_fragment_container",
+    "clips_tab",
+    "reel_feed_timeline",
+    "clips_viewer_container",
+    "clips_media_container",
+    "reel_viewer_container",
+    "clips_video_container"
+  ]
+}
