@@ -13,7 +13,6 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.vishal.thinkpadcontrol.utils.ErrorHandler
 
 @Singleton
 class SettingsRepository @Inject constructor(
@@ -40,149 +39,129 @@ class SettingsRepository @Inject constructor(
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create encrypted preferences, falling back to regular preferences", e)
+            Log.e(TAG, "Failed to create encrypted preferences", e)
             throw SecurityException("Unable to create secure storage. Please ensure device security is properly configured.", e)
         }
     }
 
-    private val _youtubeEnabled = MutableStateFlow(getYoutubeEnabled())
+    private val _youtubeEnabled = MutableStateFlow(getYoutubeEnabledInternal())
     val youtubeEnabled: Flow<Boolean> = _youtubeEnabled.asStateFlow()
 
-    private val _instagramEnabled = MutableStateFlow(getInstagramEnabled())
+    private val _instagramEnabled = MutableStateFlow(getInstagramEnabledInternal())
     val instagramEnabled: Flow<Boolean> = _instagramEnabled.asStateFlow()
 
-    private val _youtubeInterventions = MutableStateFlow(getYoutubeInterventions())
+    private val _youtubeInterventions = MutableStateFlow(getYoutubeInterventionsInternal())
     val youtubeInterventions: Flow<Int> = _youtubeInterventions.asStateFlow()
 
-    private val _instagramInterventions = MutableStateFlow(getInstagramInterventions())
+    private val _instagramInterventions = MutableStateFlow(getInstagramInterventionsInternal())
     val instagramInterventions: Flow<Int> = _instagramInterventions.asStateFlow()
 
-    private fun getYoutubeEnabled(): Boolean {
-        return try {
+    private fun getYoutubeEnabledInternal(): Boolean {
+        return runCatching {
             sharedPreferences.getBoolean("youtube_enabled", true)
-        } catch (e: Exception) {
-            ErrorHandler.handleError("getYoutubeEnabled", e)
+        }.getOrElse { 
+            Log.e(TAG, "Error getting YouTube enabled state", it)
             true
         }
     }
 
-    private fun getInstagramEnabled(): Boolean {
-        return try {
+    private fun getInstagramEnabledInternal(): Boolean {
+        return runCatching {
             sharedPreferences.getBoolean("instagram_enabled", true)
-        } catch (e: Exception) {
-            ErrorHandler.handleError("getInstagramEnabled", e)
+        }.getOrElse { 
+            Log.e(TAG, "Error getting Instagram enabled state", it)
             true
         }
     }
 
-    private fun getYoutubeInterventions(): Int {
-        return try {
+    private fun getYoutubeInterventionsInternal(): Int {
+        return runCatching {
             val today = LocalDate.now().toString()
             val lastDate = sharedPreferences.getString("last_intervention_date", "")
             if (lastDate == today) {
                 sharedPreferences.getInt("youtube_interventions", 0)
             } else {
-                resetDailyCounters()
+                resetDailyCountersInternal()
                 0
             }
-        } catch (e: Exception) {
-            ErrorHandler.handleError("getYoutubeInterventions", e)
+        }.getOrElse { 
+            Log.e(TAG, "Error getting YouTube interventions", it)
             0
         }
     }
 
-    private fun getInstagramInterventions(): Int {
-        return try {
+    private fun getInstagramInterventionsInternal(): Int {
+        return runCatching {
             val today = LocalDate.now().toString()
             val lastDate = sharedPreferences.getString("last_intervention_date", "")
             if (lastDate == today) {
                 sharedPreferences.getInt("instagram_interventions", 0)
             } else {
-                resetDailyCounters()
+                resetDailyCountersInternal()
                 0
             }
-        } catch (e: Exception) {
-            ErrorHandler.handleError("getInstagramInterventions", e)
+        }.getOrElse { 
+            Log.e(TAG, "Error getting Instagram interventions", it)
             0
         }
     }
 
-    private fun resetDailyCounters() {
-        try {
+    private fun resetDailyCountersInternal() {
+        runCatching {
             val today = LocalDate.now().toString()
             sharedPreferences.edit()
                 .putString("last_intervention_date", today)
                 .putInt("youtube_interventions", 0)
                 .putInt("instagram_interventions", 0)
                 .apply()
-        } catch (e: Exception) {
-            ErrorHandler.handleError("resetDailyCounters", e)
+        }.onFailure { 
+            Log.e(TAG, "Error resetting daily counters", it)
         }
     }
 
-    suspend fun setYoutubeEnabled(enabled: Boolean) {
-        withContext(Dispatchers.IO) {
-            try {
-                sharedPreferences.edit().putBoolean("youtube_enabled", enabled).apply()
-                _youtubeEnabled.value = enabled
-            } catch (e: Exception) {
-                ErrorHandler.handleError("setYoutubeEnabled", e)
-                throw e
-            }
+    suspend fun setYoutubeEnabled(enabled: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            sharedPreferences.edit().putBoolean("youtube_enabled", enabled).apply()
+            _youtubeEnabled.value = enabled
         }
     }
 
-    suspend fun setInstagramEnabled(enabled: Boolean) {
-        withContext(Dispatchers.IO) {
-            try {
-                sharedPreferences.edit().putBoolean("instagram_enabled", enabled).apply()
-                _instagramEnabled.value = enabled
-            } catch (e: Exception) {
-                ErrorHandler.handleError("setInstagramEnabled", e)
-                throw e
-            }
+    suspend fun setInstagramEnabled(enabled: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            sharedPreferences.edit().putBoolean("instagram_enabled", enabled).apply()
+            _instagramEnabled.value = enabled
         }
     }
 
-    suspend fun incrementYoutubeInterventions() {
-        withContext(Dispatchers.IO) {
-            try {
-                val today = LocalDate.now().toString()
-                val editor = sharedPreferences.edit()
-                editor.putString("last_intervention_date", today)
-                
-                val current = getYoutubeInterventions()
-                val new = current + 1
-                editor.putInt("youtube_interventions", new)
-                editor.apply()
-                
-                _youtubeInterventions.value = new
-                Log.d(TAG, "YouTube interventions incremented to $new")
-            } catch (e: Exception) {
-                ErrorHandler.handleError("incrementYoutubeInterventions", e)
-                throw e
-            }
+    suspend fun incrementYoutubeInterventions(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val today = LocalDate.now().toString()
+            val editor = sharedPreferences.edit()
+            editor.putString("last_intervention_date", today)
+            
+            val current = getYoutubeInterventionsInternal()
+            val new = current + 1
+            editor.putInt("youtube_interventions", new)
+            editor.apply()
+            
+            _youtubeInterventions.value = new
+            Log.d(TAG, "YouTube interventions incremented to $new")
         }
     }
 
-    suspend fun incrementInstagramInterventions() {
-        withContext(Dispatchers.IO) {
-            try {
-                val today = LocalDate.now().toString()
-                val editor = sharedPreferences.edit()
-                editor.putString("last_intervention_date", today)
-                
-                val current = getInstagramInterventions()
-                val new = current + 1
-                editor.putInt("instagram_interventions", new)
-                editor.apply()
-                
-                _instagramInterventions.value = new
-                Log.d(TAG, "Instagram interventions incremented to $new")
-            } catch (e: Exception) {
-                ErrorHandler.handleError("incrementInstagramInterventions", e)
-                throw e
-            }
+    suspend fun incrementInstagramInterventions(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val today = LocalDate.now().toString()
+            val editor = sharedPreferences.edit()
+            editor.putString("last_intervention_date", today)
+            
+            val current = getInstagramInterventionsInternal()
+            val new = current + 1
+            editor.putInt("instagram_interventions", new)
+            editor.apply()
+            
+            _instagramInterventions.value = new
+            Log.d(TAG, "Instagram interventions incremented to $new")
         }
     }
 }

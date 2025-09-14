@@ -85,6 +85,10 @@
 -keep class j$.** { *; }
 -dontwarn j$.**
 
+# Result class optimization
+-keep class kotlin.Result { *; }
+-keep class kotlin.ResultKt { *; }
+
 # Remove warnings
 -dontwarn org.slf4j.**
 -dontwarn org.conscrypt.**

@@ -1,30 +1,30 @@
 # ThinkPad Control
 
-ThinkPad Control is an Android accessibility service that helps users maintain focus by detecting and redirecting attention away from short-form video content on YouTube Shorts and Instagram Reels. The app uses a grace period approach with motivational interventions and temporary blocking to encourage mindful usage patterns.
+ThinkPad Control is an Android accessibility service application designed to help users maintain focus by detecting and redirecting attention away from short-form video content on YouTube Shorts and Instagram Reels. The app implements a grace period system with motivational interventions and temporary blocking to encourage mindful usage patterns.
 
 ## Features
 
-- **Smart Detection**: Monitors YouTube and Instagram for short-form video content using accessibility service APIs
+- **Smart Content Detection**: Monitors YouTube and Instagram for short-form video content using accessibility service APIs with fallback text-based detection
 - **Grace Period System**: 5-minute initial grace period before intervention
 - **Gentle Interventions**: Shows motivational quotes instead of harsh blocking
 - **Temporary Blocking**: 60-minute cooldown periods after interventions
 - **Usage Statistics**: Daily intervention tracking for both platforms
-- **Customizable Detection**: Advanced users can modify view ID patterns for better accuracy
-- **Privacy-First Design**: All data stored locally with encrypted preferences
-- **Material Design 3**: Modern UI with dynamic theming support
-- **Battery Optimized**: Minimal resource usage with smart detection algorithms
+- **Customizable Detection**: Advanced users can modify view ID patterns for better accuracy with input validation
+- **Privacy-First Design**: All data stored locally with encrypted preferences and secure fallback handling
+- **Material Design 3**: Modern UI with dynamic theming support and accessibility compliance
+- **Battery Optimized**: Minimal resource usage with optimized detection algorithms and proper memory management
 
 ## How It Works
 
 The app implements a multi-stage intervention system:
 
-1. **Detection Phase**: Uses AccessibilityService to monitor YouTube and Instagram for specific UI elements that indicate short-form content
+1. **Detection Phase**: Uses AccessibilityService to monitor YouTube and Instagram for specific UI elements and text content that indicate short-form videos
 2. **Grace Period**: Allows 5 minutes of normal usage when apps are first opened
 3. **Intervention**: After grace period, displays motivational quotes and navigates away from distracting content
 4. **Soft Block**: Implements 60-minute cooldown where immediate redirection occurs
 5. **Statistics**: Tracks successful interventions as daily focus metrics
 
-The detection system uses configurable view ID patterns stored in encrypted preferences, with fallback navigation using both back actions and home intents.
+The detection system uses configurable view ID patterns stored in encrypted preferences with fallback text-based detection for improved robustness.
 
 ## Requirements
 
@@ -79,17 +79,31 @@ The app requires the following permissions:
 - **Capabilities**: Retrieve window content, filter key events
 - **Feedback Type**: Generic feedback
 
-## Privacy
+## Privacy & Security
 
-ThinkPad Control prioritizes user privacy:
+ThinkPad Control prioritizes user privacy and data security:
 
-- **Local Storage Only**: All data stored on device using EncryptedSharedPreferences
+- **Encrypted Local Storage**: All data stored on device using EncryptedSharedPreferences with secure fallback handling
 - **No Network Communication**: App functions entirely offline
 - **Limited Scope**: Only monitors YouTube and Instagram for specific content types
 - **No Data Collection**: No analytics, tracking, or data transmission
 - **Accessibility Service**: Used solely for detecting short-form video content patterns
+- **Input Validation**: All user inputs are validated to prevent security issues
+- **Memory Management**: Proper resource cleanup and memory leak prevention
 
-The accessibility service monitors only the specified apps for predefined UI elements and does not access, store, or transmit personal content.
+The accessibility service monitors only the specified apps for predefined UI elements and text patterns, and does not access, store, or transmit personal content.
+
+## Architecture
+
+The app follows modern Android development best practices:
+
+- **MVVM Architecture**: Clean separation of concerns with ViewModels and repositories
+- **Dependency Injection**: Hilt for dependency management
+- **Jetpack Compose**: Modern declarative UI framework
+- **Coroutines**: Asynchronous programming with proper error handling
+- **Result Wrappers**: Consistent error handling using Kotlin Result types
+- **Repository Pattern**: Data layer abstraction with encrypted storage
+- **Use Cases**: Business logic encapsulation for complex operations
 
 ## Troubleshooting
 
@@ -104,6 +118,7 @@ The accessibility service monitors only the specified apps for predefined UI ele
 - **Battery Optimization**: Add app to battery optimization whitelist for consistent operation
 - **Detection Issues**: Update view ID patterns in advanced settings if apps have been updated
 - **Notifications**: Grant notification permission on Android 13+ for status updates
+- **Encryption Errors**: Ensure device has proper security configuration (screen lock, etc.)
 
 ## Known Limitations
 
@@ -112,6 +127,7 @@ The accessibility service monitors only the specified apps for predefined UI ele
 - Grace period and block duration are currently fixed (5 minutes and 60 minutes respectively)
 - Limited to YouTube Shorts and Instagram Reels detection only
 - Requires Android 7.0+ due to accessibility service requirements
+- Encrypted storage requires device security features to be enabled
 
 ## Contributing
 

@@ -38,102 +38,90 @@ class BlockedUntilRepository @Inject constructor(
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create encrypted preferences, falling back to regular preferences", e)
+            Log.e(TAG, "Failed to create encrypted preferences", e)
             throw SecurityException("Unable to create secure storage. Please ensure device security is properly configured.", e)
         }
     }
 
-    private val _youtubeBlockedUntil = MutableStateFlow(getYoutubeBlockedUntil())
+    private val _youtubeBlockedUntil = MutableStateFlow(getYoutubeBlockedUntilInternal())
     val youtubeBlockedUntil: Flow<Long> = _youtubeBlockedUntil.asStateFlow()
 
-    private val _instagramBlockedUntil = MutableStateFlow(getInstagramBlockedUntil())
+    private val _instagramBlockedUntil = MutableStateFlow(getInstagramBlockedUntilInternal())
     val instagramBlockedUntil: Flow<Long> = _instagramBlockedUntil.asStateFlow()
 
-    private fun getYoutubeBlockedUntil(): Long {
-        return try {
+    private fun getYoutubeBlockedUntilInternal(): Long {
+        return runCatching {
             val timestamp = sharedPreferences.getLong("youtube_blocked_until", 0L)
-            // Clear expired blocks
             if (timestamp > 0 && System.currentTimeMillis() >= timestamp) {
                 clearYoutubeBlockInternal()
                 0L
             } else {
                 timestamp
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting YouTube blocked until", e)
+        }.getOrElse { 
+            Log.e(TAG, "Error getting YouTube blocked until", it)
             0L
         }
     }
 
-    private fun getInstagramBlockedUntil(): Long {
-        return try {
+    private fun getInstagramBlockedUntilInternal(): Long {
+        return runCatching {
             val timestamp = sharedPreferences.getLong("instagram_blocked_until", 0L)
-            // Clear expired blocks
             if (timestamp > 0 && System.currentTimeMillis() >= timestamp) {
                 clearInstagramBlockInternal()
                 0L
             } else {
                 timestamp
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting Instagram blocked until", e)
+        }.getOrElse { 
+            Log.e(TAG, "Error getting Instagram blocked until", it)
             0L
         }
     }
 
-    suspend fun setYoutubeBlockedUntil(timestamp: Long) {
-        withContext(Dispatchers.IO) {
-            try {
-                sharedPreferences.edit().putLong("youtube_blocked_until", timestamp).apply()
-                _youtubeBlockedUntil.value = timestamp
-                Log.d(TAG, "YouTube blocked until: $timestamp")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error setting YouTube blocked until", e)
-                throw e
-            }
+    suspend fun setYoutubeBlockedUntil(timestamp: Long): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            sharedPreferences.edit().putLong("youtube_blocked_until", timestamp).apply()
+            _youtubeBlockedUntil.value = timestamp
+            Log.d(TAG, "YouTube blocked until: $timestamp")
         }
     }
 
-    suspend fun setInstagramBlockedUntil(timestamp: Long) {
-        withContext(Dispatchers.IO) {
-            try {
-                sharedPreferences.edit().putLong("instagram_blocked_until", timestamp).apply()
-                _instagramBlockedUntil.value = timestamp
-                Log.d(TAG, "Instagram blocked until: $timestamp")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error setting Instagram blocked until", e)
-                throw e
-            }
+    suspend fun setInstagramBlockedUntil(timestamp: Long): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            sharedPreferences.edit().putLong("instagram_blocked_until", timestamp).apply()
+            _instagramBlockedUntil.value = timestamp
+            Log.d(TAG, "Instagram blocked until: $timestamp")
         }
     }
 
-    suspend fun clearYoutubeBlock() {
-        withContext(Dispatchers.IO) {
+    suspend fun clearYoutubeBlock(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
             clearYoutubeBlockInternal()
             _youtubeBlockedUntil.value = 0L
         }
     }
 
-    suspend fun clearInstagramBlock() {
-        withContext(Dispatchers.IO) {
+    suspend fun clearInstagramBlock(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
             clearInstagramBlockInternal()
             _instagramBlockedUntil.value = 0L
         }
     }
 
     private fun clearYoutubeBlockInternal() {
-        try {
+        runCatching {
             sharedPreferences.edit().putLong("youtube_blocked_until", 0L).apply()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error clearing YouTube block", e)
+        }.onFailure { 
+            Log.e(TAG, "Error clearing YouTube block", it)
         }
     }
 
     private fun clearInstagramBlockInternal() {
-        try {
+        runCatching {
             sharedPreferences.edit().putLong("instagram_blocked_until", 0L).apply()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error clearing Instagram block", e)
+        }.onFailure { 
+            Log.e(TAG, "Error clearing Instagram block", it)
         }
     }
 }

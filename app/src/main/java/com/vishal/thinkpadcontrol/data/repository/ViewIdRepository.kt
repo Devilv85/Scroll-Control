@@ -7,10 +7,13 @@ import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.vishal.thinkpadcontrol.domain.model.ViewIdConfig
+import com.vishal.thinkpadcontrol.utils.InputValidator
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -51,7 +54,7 @@ class ViewIdRepository @Inject constructor(
     val viewIdConfig: Flow<ViewIdConfig> = _viewIdConfig.asStateFlow()
 
     private fun loadViewIdConfig(): ViewIdConfig {
-        return try {
+        return runCatching {
             val youtubeJson = sharedPreferences.getString(KEY_YOUTUBE_IDS, null)
             val instagramJson = sharedPreferences.getString(KEY_INSTAGRAM_IDS, null)
             val lastUpdated = sharedPreferences.getLong(KEY_LAST_UPDATED, 0L)
@@ -75,8 +78,8 @@ class ViewIdRepository @Inject constructor(
                 instagramIds = instagramIds,
                 lastUpdated = lastUpdated
             )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading view ID config", e)
+        }.getOrElse { 
+            Log.e(TAG, "Error loading view ID config", it)
             ViewIdConfig(
                 youtubeIds = loadDefaultYouTubeIds(),
                 instagramIds = loadDefaultInstagramIds(),
@@ -86,12 +89,12 @@ class ViewIdRepository @Inject constructor(
     }
 
     private fun loadDefaultYouTubeIds(): List<String> {
-        return try {
+        return runCatching {
             val json = context.assets.open("view_ids.json").bufferedReader().use { it.readText() }
             val viewIds = Gson().fromJson(json, com.vishal.thinkpadcontrol.utils.ViewIds::class.java)
             viewIds.youtube
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to load default YouTube IDs", e)
+        }.getOrElse { 
+            Log.w(TAG, "Failed to load default YouTube IDs", it)
             listOf(
                 "shorts_player_page",
                 "reel_player_page",
@@ -102,12 +105,12 @@ class ViewIdRepository @Inject constructor(
     }
 
     private fun loadDefaultInstagramIds(): List<String> {
-        return try {
+        return runCatching {
             val json = context.assets.open("view_ids.json").bufferedReader().use { it.readText() }
             val viewIds = Gson().fromJson(json, com.vishal.thinkpadcontrol.utils.ViewIds::class.java)
             viewIds.instagram
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to load default Instagram IDs", e)
+        }.getOrElse { 
+            Log.w(TAG, "Failed to load default Instagram IDs", it)
             listOf(
                 "clips_viewer_view_pager",
                 "reel_viewer_fragment_container",
@@ -117,8 +120,13 @@ class ViewIdRepository @Inject constructor(
         }
     }
 
-    suspend fun updateYouTubeIds(ids: List<String>) {
-        try {
+    suspend fun updateYouTubeIds(ids: List<String>): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val validationResult = InputValidator.validateViewIdList(ids)
+            if (validationResult is InputValidator.ValidationResult.Invalid) {
+                throw IllegalArgumentException(validationResult.message)
+            }
+
             val json = Gson().toJson(ids)
             val currentTime = System.currentTimeMillis()
             
@@ -133,14 +141,16 @@ class ViewIdRepository @Inject constructor(
             )
             
             Log.d(TAG, "Updated YouTube IDs: ${ids.size} entries")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating YouTube IDs", e)
-            throw e
         }
     }
 
-    suspend fun updateInstagramIds(ids: List<String>) {
-        try {
+    suspend fun updateInstagramIds(ids: List<String>): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val validationResult = InputValidator.validateViewIdList(ids)
+            if (validationResult is InputValidator.ValidationResult.Invalid) {
+                throw IllegalArgumentException(validationResult.message)
+            }
+
             val json = Gson().toJson(ids)
             val currentTime = System.currentTimeMillis()
             
@@ -155,14 +165,11 @@ class ViewIdRepository @Inject constructor(
             )
             
             Log.d(TAG, "Updated Instagram IDs: ${ids.size} entries")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating Instagram IDs", e)
-            throw e
         }
     }
 
-    suspend fun resetToDefaults() {
-        try {
+    suspend fun resetToDefaults(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
             val defaultYoutube = loadDefaultYouTubeIds()
             val defaultInstagram = loadDefaultInstagramIds()
             val currentTime = System.currentTimeMillis()
@@ -180,9 +187,6 @@ class ViewIdRepository @Inject constructor(
             )
             
             Log.d(TAG, "Reset view IDs to defaults")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error resetting view IDs", e)
-            throw e
         }
     }
 }

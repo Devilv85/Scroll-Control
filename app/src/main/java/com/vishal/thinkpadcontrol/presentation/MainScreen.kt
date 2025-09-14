@@ -1,5 +1,6 @@
 package com.vishal.thinkpadcontrol.presentation
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -18,10 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vishal.thinkpadcontrol.presentation.viewmodels.MainViewModel
 import com.vishal.thinkpadcontrol.domain.model.UiState
@@ -37,6 +39,14 @@ fun MainScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isServiceEnabled by viewModel.isServiceEnabled.collectAsStateWithLifecycle()
     val viewIdConfig by viewModel.viewIdConfig.collectAsStateWithLifecycle()
+    val errorState by viewModel.errorState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(errorState) {
+        errorState?.let { error ->
+            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -44,14 +54,22 @@ fun MainScreen(viewModel: MainViewModel) {
                 title = {
                     Text(
                         text = "ThinkPad Control",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.semantics {
+                            contentDescription = "ThinkPad Control app title"
+                        }
                     )
                 },
                 actions = {
-                    IconButton(onClick = { openAccessibilitySettings(context) }) {
+                    IconButton(
+                        onClick = { openAccessibilitySettings(context) },
+                        modifier = Modifier.semantics {
+                            contentDescription = "Open accessibility settings"
+                        }
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Open Settings"
+                            contentDescription = "Settings"
                         )
                     }
                 }
@@ -112,7 +130,14 @@ private fun ServiceStatusCard(
     onEnableService: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = if (isServiceEnabled) 
+                    "Service is active and monitoring apps" 
+                else 
+                    "Service is inactive, tap to enable"
+            },
         colors = CardDefaults.cardColors(
             containerColor = if (isServiceEnabled) 
                 MaterialTheme.colorScheme.primaryContainer 
@@ -126,7 +151,7 @@ private fun ServiceStatusCard(
         ) {
             Icon(
                 imageVector = if (isServiceEnabled) Icons.Default.CheckCircle else Icons.Default.Warning,
-                contentDescription = null,
+                contentDescription = if (isServiceEnabled) "Service active" else "Service inactive",
                 modifier = Modifier.size(56.dp),
                 tint = if (isServiceEnabled) 
                     MaterialTheme.colorScheme.primary 
@@ -152,7 +177,11 @@ private fun ServiceStatusCard(
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = onEnableService,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = "Enable accessibility service"
+                        }
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
@@ -174,7 +203,13 @@ private fun AppControlsCard(
     onToggleInstagram: (Boolean) -> Unit,
     isServiceEnabled: Boolean
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "App controls for YouTube and Instagram blocking"
+            }
+    ) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -218,7 +253,11 @@ private fun AppControlRow(
     isServiceEnabled: Boolean
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "$title control: ${if (enabled) "enabled" else "disabled"}"
+            },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -238,7 +277,10 @@ private fun AppControlRow(
         Switch(
             checked = enabled,
             onCheckedChange = onToggle,
-            enabled = isServiceEnabled
+            enabled = isServiceEnabled,
+            modifier = Modifier.semantics {
+                contentDescription = "Toggle $title blocking"
+            }
         )
     }
 }
@@ -253,7 +295,13 @@ private fun ViewIdManagementCard(
     var showYouTubeEditor by remember { mutableStateOf(false) }
     var showInstagramEditor by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "View ID management for advanced detection customization"
+            }
+    ) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -276,14 +324,22 @@ private fun ViewIdManagementCard(
             ) {
                 Button(
                     onClick = { showYouTubeEditor = true },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics {
+                            contentDescription = "Edit YouTube view IDs, currently ${viewIdConfig.youtubeIds.size} entries"
+                        }
                 ) {
                     Text("YouTube IDs (${viewIdConfig.youtubeIds.size})")
                 }
 
                 Button(
                     onClick = { showInstagramEditor = true },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics {
+                            contentDescription = "Edit Instagram view IDs, currently ${viewIdConfig.instagramIds.size} entries"
+                        }
                 ) {
                     Text("Instagram IDs (${viewIdConfig.instagramIds.size})")
                 }
@@ -291,7 +347,11 @@ private fun ViewIdManagementCard(
 
             OutlinedButton(
                 onClick = onResetToDefaults,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Reset all view IDs to default values"
+                    }
             ) {
                 Text("Reset to Defaults")
             }
@@ -347,17 +407,22 @@ private fun ViewIdEditorDialog(
         text = {
             Column {
                 Text(
-                    text = "Enter one view ID per line:",
+                    text = "Enter one view ID per line (format: com.package:id/view_name or view_name):",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 OutlinedTextField(
                     value = idsText,
-                    onValueChange = { idsText = it },
-                    modifier = Modifier
+                    onValueChange = { 
+                        idsText = it
                         errorMessage = null
+                    },
+                    modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
+                        .height(200.dp)
+                        .semantics {
+                            contentDescription = "View ID input field"
+                        },
                     placeholder = { Text("view_id_1\nview_id_2\n...") },
                     isError = errorMessage != null
                 )
@@ -388,13 +453,21 @@ private fun ViewIdEditorDialog(
                             errorMessage = validationResult.message
                         }
                     }
+                },
+                modifier = Modifier.semantics {
+                    contentDescription = "Save view ID changes"
                 }
             ) {
                 Text("Save")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.semantics {
+                    contentDescription = "Cancel view ID editing"
+                }
+            ) {
                 Text("Cancel")
             }
         }
@@ -406,7 +479,11 @@ private fun ActiveBlocksCard(
     uiState: UiState
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Active blocks showing currently blocked apps"
+            },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
@@ -420,7 +497,7 @@ private fun ActiveBlocksCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.Block,
-                    contentDescription = null,
+                    contentDescription = "Block icon",
                     modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.secondary
                 )
@@ -459,7 +536,10 @@ private fun BlockRow(
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        )
+        ),
+        modifier = Modifier.semantics {
+            contentDescription = "$appName blocked for ${formatTime(remainingTime / 1000)}"
+        }
     ) {
         Row(
             modifier = Modifier
@@ -484,7 +564,7 @@ private fun BlockRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Timer,
-                    contentDescription = null,
+                    contentDescription = "Timer icon",
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -503,7 +583,13 @@ private fun BlockRow(
 private fun InterventionsCard(
     uiState: UiState
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Today's focus statistics showing intervention counts"
+            }
+    ) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -554,7 +640,9 @@ private fun InterventionStatCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.semantics {
+            contentDescription = "$appName: $count interventions today"
+        },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -586,7 +674,11 @@ private fun InterventionStatCard(
 @Composable
 private fun HowItWorksCard() {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "How the app works explanation"
+            },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer
         )

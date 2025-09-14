@@ -8,6 +8,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.vishal.thinkpadcontrol.data.repository.BlockedUntilRepository
 import com.vishal.thinkpadcontrol.data.repository.SettingsRepository
 import com.vishal.thinkpadcontrol.data.repository.ViewIdRepository
+import com.vishal.thinkpadcontrol.domain.usecase.FocusManager
 import com.vishal.thinkpadcontrol.utils.Constants
 import com.vishal.thinkpadcontrol.utils.NavigationController
 import com.vishal.thinkpadcontrol.utils.NotificationHelper
@@ -17,6 +18,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -37,9 +40,12 @@ class BlockerService : AccessibilityService() {
     @Inject
     lateinit var navigationController: NavigationController
 
+    @Inject
+    lateinit var focusManager: FocusManager
+
     private var serviceScope: CoroutineScope? = null
-    private val graceTimers = mutableMapOf<String, Runnable>()
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val graceTimers = mutableMapOf<String, Job>()
+    private val timerMutex = Mutex()
     private var notificationHelper: NotificationHelper? = null
 
     companion object {
@@ -62,6 +68,7 @@ class BlockerService : AccessibilityService() {
             startForeground(Constants.NOTIFICATION_ID, notificationHelper!!.buildNotification())
             
             setupViewIdCacheUpdates()
+            restoreActiveBlocks()
         } catch (e: Exception) {
             Log.e(TAG, "Error starting foreground service", e)
         }
@@ -76,6 +83,26 @@ class BlockerService : AccessibilityService() {
                 .launchIn(scope)
         }
     }
+
+    private fun restoreActiveBlocks() {
+        serviceScope?.launch {
+            try {
+                val youtubeBlocked = blockedUntilRepository.youtubeBlockedUntil.first()
+                val instagramBlocked = blockedUntilRepository.instagramBlockedUntil.first()
+                val currentTime = System.currentTimeMillis()
+
+                if (youtubeBlocked > currentTime) {
+                    Log.d(TAG, "Restored YouTube block until $youtubeBlocked")
+                }
+                if (instagramBlocked > currentTime) {
+                    Log.d(TAG, "Restored Instagram block until $instagramBlocked")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error restoring active blocks", e)
+            }
+        }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event?.let { accessibilityEvent ->
             if (!isEventTypeMonitored(accessibilityEvent.eventType)) {
@@ -93,6 +120,7 @@ class BlockerService : AccessibilityService() {
     private fun isEventTypeMonitored(eventType: Int): Boolean {
         return MONITORED_EVENT_TYPES.contains(eventType)
     }
+
     private fun handleAccessibilityEvent(event: AccessibilityEvent) {
         val packageName = event.packageName?.toString() ?: return
 
@@ -143,81 +171,119 @@ class BlockerService : AccessibilityService() {
     }
 
     private fun detectYouTubeShorts(): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
         return try {
-            val rootNode = rootInActiveWindow ?: return false
             val viewIds = viewIdCache.getYouTubeIds()
-            
-            detectViewIds(rootNode, viewIds)
+            detectContent(rootNode, viewIds, Constants.YOUTUBE_SHORTS_KEYWORDS)
         } catch (e: Exception) {
             Log.e(TAG, "Error detecting YouTube Shorts", e)
             false
+        } finally {
+            rootNode.recycle()
         }
     }
 
     private fun detectInstagramReels(): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
         return try {
-            val rootNode = rootInActiveWindow ?: return false
             val viewIds = viewIdCache.getInstagramIds()
-            
-            detectViewIds(rootNode, viewIds)
+            detectContent(rootNode, viewIds, Constants.INSTAGRAM_REELS_KEYWORDS)
         } catch (e: Exception) {
             Log.e(TAG, "Error detecting Instagram Reels", e)
             false
+        } finally {
+            rootNode.recycle()
         }
+    }
+
+    private fun detectContent(rootNode: AccessibilityNodeInfo, viewIds: Set<String>, keywords: Set<String>): Boolean {
+        return detectViewIds(rootNode, viewIds) || detectByText(rootNode, keywords)
     }
 
     private fun detectViewIds(rootNode: AccessibilityNodeInfo, viewIds: Set<String>): Boolean {
         return viewIds.any { viewId ->
             try {
-                rootNode.findAccessibilityNodeInfosByViewId(viewId)?.isNotEmpty() == true
+                val nodes = rootNode.findAccessibilityNodeInfosByViewId(viewId)
+                val found = nodes?.isNotEmpty() == true
+                nodes?.forEach { it.recycle() }
+                found
             } catch (e: Exception) {
                 Log.w(TAG, "Error checking view ID: $viewId", e)
                 false
             }
         }
     }
-    private fun startGraceTimer(packageName: String) {
-        // Cancel existing timer for this package
-        graceTimers[packageName]?.let { 
-            if (it is Job) {
-                it.cancel()
+
+    private fun detectByText(rootNode: AccessibilityNodeInfo, keywords: Set<String>): Boolean {
+        return traverseNodeTree(rootNode) { node ->
+            val text = node.text?.toString()?.lowercase() ?: ""
+            val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
+            keywords.any { keyword ->
+                text.contains(keyword) || contentDesc.contains(keyword)
             }
         }
+    }
 
-        val timer = Runnable {
-            serviceScope?.launch {
-                try {
-                    showInterventionDialog(packageName)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error showing intervention for $packageName", e)
+    private fun traverseNodeTree(node: AccessibilityNodeInfo, predicate: (AccessibilityNodeInfo) -> Boolean): Boolean {
+        try {
+            if (predicate(node)) {
+                return true
+            }
+
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i)
+                if (child != null) {
+                    try {
+                        if (traverseNodeTree(child, predicate)) {
+                            return true
+                        }
+                    } finally {
+                        child.recycle()
+                    }
                 }
             }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error traversing node tree", e)
         }
+        return false
+    }
 
-        handler.postDelayed(timer, Constants.GRACE_PERIOD_MS)
-        graceTimers[packageName] = timer
-        
-        Log.d(TAG, "Started grace timer for $packageName")
+    private fun startGraceTimer(packageName: String) {
+        serviceScope?.launch {
+            timerMutex.withLock {
+                graceTimers[packageName]?.cancel()
+
+                val timer = launch {
+                    try {
+                        delay(Constants.GRACE_PERIOD_MS)
+                        showInterventionDialog(packageName)
+                    } catch (e: CancellationException) {
+                        Log.d(TAG, "Grace timer cancelled for $packageName")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in grace timer for $packageName", e)
+                    }
+                }
+
+                graceTimers[packageName] = timer
+                Log.d(TAG, "Started grace timer for $packageName")
+            }
+        }
     }
 
     private suspend fun showInterventionDialog(packageName: String) {
         try {
             Log.d(TAG, "Showing intervention for $packageName")
             
-            navigationController.performSafeNavigation(this)
-            
-            val blockUntil = System.currentTimeMillis() + Constants.BLOCK_DURATION_MS
-            when (packageName) {
-                Constants.YOUTUBE_PACKAGE -> {
-                    blockedUntilRepository.setYoutubeBlockedUntil(blockUntil)
-                    settingsRepository.incrementYoutubeInterventions()
+            val result = focusManager.performIntervention(packageName)
+            result.fold(
+                onSuccess = {
+                    navigationController.performSafeNavigation(this)
+                    Log.d(TAG, "Intervention successful for $packageName")
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "Intervention failed for $packageName", error)
                 }
-                Constants.INSTAGRAM_PACKAGE -> {
-                    blockedUntilRepository.setInstagramBlockedUntil(blockUntil)
-                    settingsRepository.incrementInstagramInterventions()
-                }
-            }
-            
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Error showing intervention", e)
         }
@@ -236,12 +302,14 @@ class BlockerService : AccessibilityService() {
 
     private fun cleanup() {
         try {
-            graceTimers.values.forEach { 
-                if (it is Runnable) {
-                    handler.removeCallbacks(it)
+            runBlocking {
+                timerMutex.withLock {
+                    graceTimers.values.forEach { job ->
+                        job.cancel()
+                    }
+                    graceTimers.clear()
                 }
             }
-            graceTimers.clear()
             
             serviceScope?.cancel()
             serviceScope = null
@@ -250,3 +318,10 @@ class BlockerService : AccessibilityService() {
             viewIdCache.clearCache()
             
             stopForeground(Service.STOP_FOREGROUND_REMOVE)
+            
+            Log.d(TAG, "Service cleanup completed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during cleanup", e)
+        }
+    }
+}

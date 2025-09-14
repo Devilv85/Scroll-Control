@@ -5,6 +5,7 @@ import com.vishal.thinkpadcontrol.data.repository.BlockedUntilRepository
 import com.vishal.thinkpadcontrol.data.repository.QuoteRepository
 import com.vishal.thinkpadcontrol.data.repository.SettingsRepository
 import com.vishal.thinkpadcontrol.data.repository.ViewIdRepository
+import com.vishal.thinkpadcontrol.domain.usecase.FocusManager
 import com.vishal.thinkpadcontrol.utils.AccessibilityServiceMonitor
 import com.vishal.thinkpadcontrol.utils.NavigationController
 import com.vishal.thinkpadcontrol.utils.ViewIdCache
@@ -59,5 +60,14 @@ object AppModule {
     @Singleton
     fun provideNavigationController(): NavigationController {
         return NavigationController()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFocusManager(
+        blockedUntilRepository: BlockedUntilRepository,
+        settingsRepository: SettingsRepository
+    ): FocusManager {
+        return FocusManager(blockedUntilRepository, settingsRepository)
     }
 }

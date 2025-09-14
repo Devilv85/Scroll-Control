@@ -21,6 +21,9 @@ class MainViewModel @Inject constructor(
     private val accessibilityServiceMonitor: AccessibilityServiceMonitor
 ) : ViewModel() {
 
+    private val _errorState = MutableStateFlow<String?>(null)
+    val errorState: StateFlow<String?> = _errorState.asStateFlow()
+
     val isServiceEnabled = accessibilityServiceMonitor.isServiceEnabled
         .stateIn(
             scope = viewModelScope,
@@ -59,52 +62,51 @@ class MainViewModel @Inject constructor(
 
     fun toggleYoutube(enabled: Boolean) {
         viewModelScope.launch {
-            try {
-                settingsRepository.setYoutubeEnabled(enabled)
-            } catch (e: Exception) {
-                // Handle error - could emit to UI state or show error message
-            }
+            settingsRepository.setYoutubeEnabled(enabled)
+                .onFailure { error ->
+                    _errorState.value = "Failed to update YouTube setting: ${error.message}"
+                }
         }
     }
 
     fun toggleInstagram(enabled: Boolean) {
         viewModelScope.launch {
-            try {
-                settingsRepository.setInstagramEnabled(enabled)
-            } catch (e: Exception) {
-                // Handle error - could emit to UI state or show error message
-            }
+            settingsRepository.setInstagramEnabled(enabled)
+                .onFailure { error ->
+                    _errorState.value = "Failed to update Instagram setting: ${error.message}"
+                }
         }
     }
 
     fun updateYouTubeIds(ids: List<String>) {
         viewModelScope.launch {
-            try {
-                viewIdRepository.updateYouTubeIds(ids)
-            } catch (e: Exception) {
-                // Handle error
-            }
+            viewIdRepository.updateYouTubeIds(ids)
+                .onFailure { error ->
+                    _errorState.value = "Failed to update YouTube IDs: ${error.message}"
+                }
         }
     }
 
     fun updateInstagramIds(ids: List<String>) {
         viewModelScope.launch {
-            try {
-                viewIdRepository.updateInstagramIds(ids)
-            } catch (e: Exception) {
-                // Handle error
-            }
+            viewIdRepository.updateInstagramIds(ids)
+                .onFailure { error ->
+                    _errorState.value = "Failed to update Instagram IDs: ${error.message}"
+                }
         }
     }
 
     fun resetViewIdsToDefaults() {
         viewModelScope.launch {
-            try {
-                viewIdRepository.resetToDefaults()
-            } catch (e: Exception) {
-                // Handle error
-            }
+            viewIdRepository.resetToDefaults()
+                .onFailure { error ->
+                    _errorState.value = "Failed to reset view IDs: ${error.message}"
+                }
         }
+    }
+
+    fun clearError() {
+        _errorState.value = null
     }
 
     fun refreshServiceState() {
@@ -113,10 +115,8 @@ class MainViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        try {
+        runCatching {
             accessibilityServiceMonitor.stopMonitoring()
-        } catch (e: Exception) {
-            // Log error but don't crash
         }
     }
 }
