@@ -40,7 +40,9 @@ object InputValidator {
     }
 
     private fun isValidViewIdFormat(viewId: String): Boolean {
-        return viewId.matches(Regex("^[a-zA-Z0-9_.]+(:id/[a-zA-Z0-9_]+)?$"))
+        // Valid formats: "view_name" or "com.package.name:id/view_name"
+        return viewId.matches(Regex("^([a-zA-Z][a-zA-Z0-9_]*\\.)*[a-zA-Z][a-zA-Z0-9_]*(:id/[a-zA-Z][a-zA-Z0-9_]*)?$")) ||
+               viewId.matches(Regex("^[a-zA-Z][a-zA-Z0-9_]*$"))
     }
     
     sealed class ValidationResult {

@@ -2,9 +2,8 @@ package com.vishal.thinkpadcontrol.utils
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
+import com.vishal.thinkpadcontrol.utils.Constants
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,13 +11,9 @@ import javax.inject.Singleton
 @Singleton
 class NavigationController @Inject constructor() {
     companion object {
-        private const val TAG = "NavigationController"
-        private const val BACK_ACTION_DELAY = 300L
-        private const val MAX_BACK_ATTEMPTS = 3
-        private const val HOME_LAUNCH_DELAY = 500L
+        private const val TAG = Constants.SERVICE_TAG
     }
 
-    private val handler = Handler(Looper.getMainLooper())
     private var isNavigating = false
 
     suspend fun performSafeNavigation(service: AccessibilityService) {
@@ -33,16 +28,16 @@ class NavigationController @Inject constructor() {
             
             // First, try a single back action
             service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-            delay(BACK_ACTION_DELAY)
+            delay(Constants.BACK_ACTION_DELAY)
             
             // Additional back actions with controlled timing
-            repeat(MAX_BACK_ATTEMPTS - 1) {
+            repeat(Constants.MAX_BACK_ATTEMPTS - 1) {
                 service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-                delay(BACK_ACTION_DELAY)
+                delay(Constants.BACK_ACTION_DELAY)
             }
             
             // Wait before launching home intent
-            delay(HOME_LAUNCH_DELAY)
+            delay(Constants.HOME_LAUNCH_DELAY)
             
             // Launch home intent as fallback
             launchHomeScreen(service)
@@ -76,7 +71,7 @@ class NavigationController @Inject constructor() {
     }
 
     fun cleanup() {
-        handler.removeCallbacksAndMessages(null)
         isNavigating = false
+        Log.d(TAG, "NavigationController cleanup completed")
     }
 }

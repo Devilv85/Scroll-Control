@@ -7,6 +7,7 @@ import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.vishal.thinkpadcontrol.domain.model.ViewIdConfig
+import com.vishal.thinkpadcontrol.utils.Constants
 import com.vishal.thinkpadcontrol.utils.InputValidator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,7 @@ class ViewIdRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        private const val TAG = "ViewIdRepository"
+        private const val TAG = Constants.REPOSITORY_TAG
         private const val PREFS_NAME = "view_id_prefs"
         private const val KEY_YOUTUBE_IDS = "youtube_view_ids"
         private const val KEY_INSTAGRAM_IDS = "instagram_view_ids"
@@ -46,7 +47,7 @@ class ViewIdRepository @Inject constructor(
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create encrypted preferences", e)
-            throw SecurityException("Unable to create secure storage for view IDs. Please ensure device security is properly configured.")
+            throw SecurityException(Constants.ENCRYPTED_PREFS_ERROR)
         }
     }
 

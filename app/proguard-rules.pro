@@ -2,9 +2,7 @@
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
 
-# Java 21 Compatibility Rules
--dontwarn java.lang.invoke.StringConcatFactory
--dontwarn java.lang.invoke.MethodHandles$Lookup
+# Java 17 Compatibility Rules
 -keep class java.lang.invoke.** { *; }
 
 # Keep Hilt generated classes
@@ -13,6 +11,7 @@
 -keep class **_HiltModules* { *; }
 -keep class **_Provide* { *; }
 -keep class **_Factory* { *; }
+-keep class **_MembersInjector* { *; }
 
 # Keep Room entities and DAOs
 -keepattributes *Annotation*
@@ -26,6 +25,7 @@
 # Keep application classes
 -keep class com.vishal.thinkpadcontrol.data.** { *; }
 -keep class com.vishal.thinkpadcontrol.domain.** { *; }
+-keep class com.vishal.thinkpadcontrol.services.** { *; }
 
 # Keep Parcelable implementations
 -keep class * implements android.os.Parcelable {
@@ -67,6 +67,9 @@
 # Compose
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
+-keep class androidx.compose.runtime.** { *; }
+-keep class androidx.compose.ui.** { *; }
+-keep class androidx.compose.material3.** { *; }
 
 # Coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
@@ -75,7 +78,7 @@
     volatile <fields>;
 }
 
-# Java 21 Language Features
+# Java 17 Language Features
 -keep class java.lang.** { *; }
 -keep class java.util.** { *; }
 -dontwarn java.lang.reflect.**
@@ -95,3 +98,4 @@
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
 -dontwarn javax.annotation.**
+-dontwarn java.lang.invoke.**

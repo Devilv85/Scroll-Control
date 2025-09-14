@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.vishal.thinkpadcontrol.utils.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +20,7 @@ class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        private const val TAG = "SettingsRepository"
+        private const val TAG = Constants.REPOSITORY_TAG
         private const val PREFS_NAME = "thinkpad_control_prefs"
     }
 
@@ -40,7 +41,7 @@ class SettingsRepository @Inject constructor(
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create encrypted preferences", e)
-            throw SecurityException("Unable to create secure storage. Please ensure device security is properly configured.", e)
+            throw SecurityException(Constants.ENCRYPTED_PREFS_ERROR, e)
         }
     }
 
